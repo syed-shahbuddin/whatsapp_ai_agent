@@ -36,6 +36,29 @@ def process_text_for_whatsapp(text):
     return whatsapp_style_text
 
 
+def split_message(text, limit=1500):
+    """Split a long message into chunks that fit within Twilio's character limit."""
+    if len(text) <= limit:
+        return [text]
+
+    chunks = []
+    while text:
+        if len(text) <= limit:
+            chunks.append(text)
+            break
+        # Find the last newline within the limit to split at a natural break
+        split_index = text.rfind("\n", 0, limit)
+        if split_index == -1:
+            # No newline found, split at last space
+            split_index = text.rfind(" ", 0, limit)
+        if split_index == -1:
+            # No space found, hard split
+            split_index = limit
+        chunks.append(text[:split_index].strip())
+        text = text[split_index:].strip()
+    return chunks
+
+
 def process_whatsapp_message(body):
     """Process an incoming Twilio WhatsApp message and send a response."""
     wa_id = body.get("From", "").replace("whatsapp:", "")
@@ -48,7 +71,8 @@ def process_whatsapp_message(body):
     response = generate_response(message_body, wa_id, name)
     response = process_text_for_whatsapp(response)
 
-    send_message(wa_id, response)
+    for chunk in split_message(response):
+        send_message(wa_id, chunk)
 
 
 def is_valid_whatsapp_message(body):
